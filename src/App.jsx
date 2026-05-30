@@ -134,6 +134,12 @@ const SLUG_MAP = {
   "red star":"RedStar","red star belgrade":"RedStar",
   "young boys":"YoungBoys","slavia prague":"SlaviaPrague","sparta prague":"SpartaPrague",
   "olympiacos":"Olympiacos","paok":"PAOK",
+   "athletico pr":"AthleticoPR","athletico-pr":"AthleticoPR",
+"botafogo":"Botafogo","internacional":"Internacional",
+"gremio":"Gremio","sao paulo":"SaoPaulo","vasco":"Vasco",
+"mirassol":"Mirassol","al hilal":"AlHilal","al nassr":"AlNassr",
+"al ahly":"AlAhly","zamalek":"Zamalek","al-hilal":"AlHilal",
+"al-nassr":"AlNassr","al-ahly":"AlAhly",
 };
 
 const LEAGUE_META = {
@@ -262,6 +268,14 @@ const CLUB_ELO_DB = {
   "ClubBrugge":1778,"Anderlecht":1748,
   "Shakhtar":1798,"RedStar":1761,"SlaviaPrague":1748,"SpartaPrague":1731,
   "YoungBoys":1724,"Olympiacos":1718,"PAOK":1708,
+  "AthleticoPR":1742,"Botafogo":1798,"Internacional":1756,
+   "Gremio":1748,"SaoPaulo":1731,"Vasco":1718,"Mirassol":1620,
+   "Bayer04":1921,"Hoffenheim":1718,"Augsburg":1708,
+   "Alkmaar":1778,"Utrecht":1701,"Heracles":1668,
+   "Sporting":1828,"Vitoria":1698,"Famalicao":1672,
+   "Hearts":1698,"Hibernian":1681,"Aberdeen":1671,
+   "Besiktas":1764,"Sivasspor":1681,"Antalyaspor":1672,
+   "AlHilal":1798,"AlNassr":1781,"AlAhly":1724,"Zamalek":1718,
 };
 
 const LEAGUE_ELO_MAP = {
@@ -380,6 +394,38 @@ async function fetchClubElo(teamName, onStatus) {
   const fuzzyKey = Object.keys(CLUB_ELO_DB).find(k=>k.toLowerCase().includes(slugLower)||slugLower.includes(k.toLowerCase()));
   if (fuzzyKey) return { ok:true, club:teamName, elo:CLUB_ELO_DB[fuzzyKey], date:"2026 (static)", source:"clubelo.com" };
   onStatus?.(`Searching for ${teamName}...`);
+  const apiUrl = `https://api.clubelo.com/${slug}`;
+  for (const makeProxy of PROXIES) {
+    try {
+      const res = await fetchWithTimeout(makeProxy(apiUrl), 6000);
+      if (!res.ok) continue;
+      const raw = await res.text();
+      let csv = raw;
+      try { const j=JSON.parse(raw); if(j.contents) csv=j.contents; } catch(_) {}
+      if (!csv||csv.includes("No team")||csv.trim().length===0) break;
+      const lines = csv.split("\n").map(l=>l.trim()).filter(l=>l&&!l.startsWith("R")&&l.length>5);
+      if (!lines.length) continue;
+      const fields = lines[lines.length-1].split(",");
+      if (fields.length<6) continue;
+      const elo = parseFloat(fields[4]);
+      if (isNaN(elo)) continue;
+      return { ok:true, club:fields[1]?.trim()||teamName, elo, date:fields[5]?.trim()||"", source:"clubelo.com (live)" };
+    } catch(_) { continue; }
+  }
+
+  // fall back to static DB
+  onStatus?.(`Using cached ELO for ${teamName}...`);
+  if (CLUB_ELO_DB[slug]) return { ok:true, club:teamName, elo:CLUB_ELO_DB[slug], date:"2026 (static)", source:"clubelo.com" };
+  const slugLower = slug.toLowerCase();
+  const fuzzyKey = Object.keys(CLUB_ELO_DB).find(k=>k.toLowerCase().includes(slugLower)||slugLower.includes(k.toLowerCase()));
+  if (fuzzyKey) return { ok:true, club:teamName, elo:CLUB_ELO_DB[fuzzyKey], date:"2026 (static)", source:"clubelo.com" };
+
+  // last resort — TheSportsDB
+  onStatus?.(`Looking up ${teamName}...`);
+  const dbResult = await searchTeamOnSportsDB(teamName);
+  if (dbResult) return dbResult;
+  return { ok:true, club:teamName, elo:1580, date:"2026 (default)", source:"estimated" };
+}
   // FIX ① SECURITY: Use HTTPS to avoid mixed-content policy errors on HTTPS pages
   const apiUrl = `https://api.clubelo.com/${slug}`;
   for (const makeProxy of PROXIES) {
@@ -403,7 +449,7 @@ async function fetchClubElo(teamName, onStatus) {
   const dbResult = await searchTeamOnSportsDB(teamName);
   if (dbResult) return dbResult;
   return { ok:true, club:teamName, elo:1580, date:"2026 (default)", source:"estimated" };
-}
+
 
 async function fetchNationElo(teamName) {
   const direct = NATION_ELO[teamName];
@@ -779,15 +825,15 @@ function OnboardingScreen({onDone}) {
   const toggleGroup=useCallback(leagues=>{ setSelected(prev=>{ const n=new Set(prev); const allOn=leagues.every(l=>n.has(l)); leagues.forEach(l=>allOn?n.delete(l):n.add(l)); return n; }); },[]);
 
   if (step===0) return (
-    <div style={{position:"fixed",inset:0,zIndex:2000,overflowY:"auto",background:"radial-gradient(ellipse 80% 50% at 50% -10%,rgba(0,230,118,0.1) 0%,transparent 60%),linear-gradient(180deg,#060A14 0%,#08101E 100%)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"40px 20px",animation:"fadeUp 0.5s ease both"}}>
-      <div style={{textAlign:"center",maxWidth:600}}>
+    <div style={{position:"fixed",inset:0,zIndex:2000,overflowY:"auto",background:"radial-gradient(ellipse 80% 50% at 50% -10%,rgba(0,230,118,0.1) 0%,transparent 60%),linear-gradient(180deg,#060A14 0%,#08101E 100%)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px 16px",animation:"fadeUp 0.5s ease both"}}>
+      <div className="onboarding-content" style={{textAlign:"center",maxWidth:600}}>
         <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(0,230,118,0.08)",border:"1px solid rgba(0,230,118,0.2)",borderRadius:20,padding:"6px 16px",marginBottom:28}}>
           <span style={{width:7,height:7,borderRadius:"50%",background:"#00E676",boxShadow:"0 0 8px #00E676",display:"inline-block"}}/>
           <span style={{fontSize:11,color:"#00B856",fontWeight:700,letterSpacing:"0.2em",textTransform:"uppercase"}}>Free · No Signup · Updated Daily</span>
         </div>
-        <h1 style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(44px,9vw,80px)",color:"#D8E2F0",letterSpacing:"0.04em",lineHeight:1,marginBottom:16}}>
-          Predict Any<br/><span style={{color:"#00E676"}}>Football Match</span><br/>Instantly
-        </h1>
+        <h1 style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(28px,7vw,80px)",color:"#D8E2F0",letterSpacing:"0.04em",lineHeight:1,marginBottom:12}}>
+        Predict Any<br/><span style={{color:"#00E676"}}>Football Match</span><br/>Instantly
+         </h1>
         <p style={{fontSize:15,color:"#5A7090",lineHeight:1.75,marginBottom:36,maxWidth:460,margin:"0 auto 36px"}}>
           Enter two teams, get a full statistical breakdown — win probabilities, expected goals, top scorelines, betting markets & more. Powered by Elo ratings and the Dixon-Coles Poisson model.
         </p>
@@ -1389,20 +1435,21 @@ export default function App() {
         /* Focus-visible outline for keyboard navigation */
         button:focus-visible,a:focus-visible{outline:2px solid #00E676;outline-offset:2px;}
         /* MOBILE RESPONSIVE */
-        @media(max-width:600px){
-          .results-grid{grid-template-columns:1fr!important;}
-          .results-grid2{grid-template-columns:1fr!important;}
-          .elo-sliders{flex-direction:column!important;gap:16px!important;}
-          .team-inputs{flex-direction:column!important;}
-          .market-grid-4{grid-template-columns:repeat(2,1fr)!important;}
-          /* FIX UX ⑤: was repeat(3,1fr) — a no-op; now collapses to 1 col on small screens */
-          .market-grid-3{grid-template-columns:1fr!important;}
-          .verdict-inner{flex-direction:column!important;align-items:center!important;text-align:center!important;}
-          .header-btns{gap:6px!important;}
-          .header-btns button{padding:7px 10px!important;font-size:9px!important;}
-          .hero-title{font-size:40px!important;}
-          .share-row{flex-wrap:wrap!important;}
-        }
+@media(max-width:600px){
+  .results-grid{grid-template-columns:1fr!important;}
+  .results-grid2{grid-template-columns:1fr!important;}
+  .elo-sliders{flex-direction:column!important;gap:16px!important;}
+  .team-inputs{flex-direction:column!important;}
+  .market-grid-4{grid-template-columns:repeat(2,1fr)!important;}
+  .market-grid-3{grid-template-columns:1fr!important;}
+  .verdict-inner{flex-direction:column!important;align-items:center!important;text-align:center!important;}
+  .header-btns{gap:6px!important;}
+  .header-btns button{padding:7px 10px!important;font-size:9px!important;}
+  .hero-title{font-size:28px!important;}
+  .share-row{flex-wrap:wrap!important;}
+  .feature-pills{grid-template-columns:repeat(2,1fr)!important;display:grid!important;}
+}
+}
       `}</style>
 
       {showHistory&&<HistoryPanel history={history} onClose={()=>setShowHistory(false)} onReplay={handleReplay} onClear={()=>setHistory([])}/>}
@@ -1433,7 +1480,7 @@ export default function App() {
           </div>
 
           {phase==="input"&&(
-            <div style={{display:"flex",justifyContent:"center",gap:20,flexWrap:"wrap",marginTop:14,paddingTop:14,borderTop:"1px solid rgba(255,255,255,0.04)"}}>
+            <div className="feature-pills" style={{display:"flex",justifyContent:"center",gap:20,flexWrap:"wrap",marginTop:14,paddingTop:14,borderTop:"1px solid rgba(255,255,255,0.04)"}}>
               {[["📊","Poisson + Dixon-Coles"],["🏆","30+ Leagues"],["⚡","Live Fixtures"],["🔒","Zero Data Stored"],["🌍","Clubs & Nations"]].map(([icon,label])=>(
                 <div key={label} style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:"#2E4060"}}>
                   <span style={{fontSize:14}} aria-hidden="true">{icon}</span><span style={{fontWeight:600}}>{label}</span>
