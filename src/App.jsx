@@ -311,8 +311,10 @@ function runPredict(eloH, eloA, homeBonus, formH=0.5, formA=0.5) {
   const delta = (eloH + homeBonus - eloA) / 200;
   const fAdjH = (formH - 0.5) * 0.40;
   const fAdjA = (formA - 0.5) * 0.40;
-  const lH = Math.max(0.3, Math.min((1.55 + delta * 0.52) * (1 + fAdjH), 5.5));
-  const lA = Math.max(0.3, Math.min((1.10 - delta * 0.48) * (1 + fAdjA), 5.5));
+const baseH = homeBonus === 0 ? 1.30 : 1.55;
+const baseA = homeBonus === 0 ? 1.30 : 1.10;
+const lH = Math.max(0.3, Math.min((baseH + delta * 0.52) * (1 + fAdjH), 5.5));
+const lA = Math.max(0.3, Math.min((baseA - delta * 0.48) * (1 + fAdjA), 5.5));
   let hw=0, d=0, aw=0, over15=0, over25=0, over35=0, btts=0;
   const scores = [];
   for (let h = 0; h <= 10; h++) {
