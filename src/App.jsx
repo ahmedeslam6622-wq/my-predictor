@@ -1472,11 +1472,11 @@ export default function App() {
                 </div>
               )}
               <div className="team-inputs" style={{display:"flex",gap:20,alignItems:"flex-start"}}>
-                <TeamInput label="Home Team" value={homeTeam} onChange={setHomeTeam} accentColor="#4D9EFF" placeholder={mode==="nations"?"e.g. France":"e.g. Arsenal"} mode={mode}/>
+                <TeamInput label="Home Team" value={homeTeam} onChange={v=>{setHomeTeam(v);setVenue(3);}} accentColor="#4D9EFF" placeholder={mode==="nations"?"e.g. France":"e.g. Arsenal"} mode={mode}/>
                 <div style={{paddingTop:38,flexShrink:0}} aria-hidden="true">
                   <div style={{width:38,height:38,borderRadius:"50%",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Bebas Neue',sans-serif",fontSize:16,color:"#2E3D55"}}>VS</div>
                 </div>
-                <TeamInput label="Away Team" value={awayTeam} onChange={setAwayTeam} accentColor="#FF4D6D" placeholder={mode==="nations"?"e.g. Brazil":"e.g. Barcelona"} mode={mode}/>
+                <TeamInput label="Away Team" value={awayTeam} onChange={v=>{setAwayTeam(v);setVenue(3);}} accentColor="#FF4D6D" placeholder={mode==="nations"?"e.g. Brazil":"e.g. Barcelona"} mode={mode}/>
               </div>
               <div style={{marginTop:24,paddingTop:20,borderTop:"1px solid rgba(255,255,255,0.05)"}}>
                 <div style={{...LBL,marginBottom:12}}>Venue</div>
