@@ -353,18 +353,12 @@ function fetchWithTimeout(url, ms) {
 }
 
 async function sportsDBFetch(path) {
-  // Key "1" = free tier. Key "3" requires a paid Patreon subscription.
   const base = `https://www.thesportsdb.com/api/v1/json/1/${path}`;
-  // Direct fetch is CORS-blocked on virtually every origin — TheSportsDB does not
-  // send Access-Control-Allow-Origin for unknown origins, so we skip it and rotate
-  // through proxies immediately.
   for (const makeProxy of PROXIES) {
     try {
       const res = await fetchWithTimeout(makeProxy(base), 9000);
       if (!res.ok) continue;
       const text = await res.text();
-      // allorigins wraps response: { contents: "<raw json string>" }
-      // corsproxy.io and codetabs return the raw JSON directly
       let json;
       try {
         const parsed = JSON.parse(text);
@@ -374,17 +368,6 @@ async function sportsDBFetch(path) {
     } catch { continue; }
   }
   return null;
-}
-
-async function searchTeamOnSportsDB(teamName) {
-  try {
-    const json = await sportsDBFetch(`searchteams.php?t=${encodeURIComponent(teamName)}`);
-    const teams = (json?.teams||[]).filter(t=>t.strSport==="Soccer");
-    if (!teams.length) return null;
-    const best = teams.find(t=>t.strTeam.toLowerCase()===teamName.toLowerCase())||teams[0];
-    const league = best.strLeague||"";
-    return { ok:true, club:best.strTeam, elo:LEAGUE_ELO_MAP[league]||1580, date:"2026 (auto)", source:`${league||"Unknown"} avg` };
-  } catch { return null; }
 }
 
 async function fetchClubElo(teamName, onStatus) {
@@ -412,44 +395,16 @@ async function fetchClubElo(teamName, onStatus) {
       return { ok:true, club:fields[1]?.trim()||teamName, elo, date:fields[5]?.trim()||"", source:"clubelo.com (live)" };
     } catch(_) { continue; }
   }
-
-  // fall back to static DB
-  onStatus?.(`Using cached ELO for ${teamName}...`);
-  if (CLUB_ELO_DB[slug]) return { ok:true, club:teamName, elo:CLUB_ELO_DB[slug], date:"2026 (static)", source:"clubelo.com" };
-  const slugLower = slug.toLowerCase();
-  const fuzzyKey = Object.keys(CLUB_ELO_DB).find(k=>k.toLowerCase().includes(slugLower)||slugLower.includes(k.toLowerCase()));
-  if (fuzzyKey) return { ok:true, club:teamName, elo:CLUB_ELO_DB[fuzzyKey], date:"2026 (static)", source:"clubelo.com" };
-
-  // last resort — TheSportsDB
   onStatus?.(`Looking up ${teamName}...`);
-  const dbResult = await searchTeamOnSportsDB(teamName);
-  if (dbResult) return dbResult;
+  const json = await sportsDBFetch(`searchteams.php?t=${encodeURIComponent(teamName)}`);
+  const teams = (json?.teams||[]).filter(t=>t.strSport==="Soccer");
+  if (teams.length) {
+    const best = teams.find(t=>t.strTeam.toLowerCase()===teamName.toLowerCase())||teams[0];
+    const league = best.strLeague||"";
+    return { ok:true, club:best.strTeam, elo:LEAGUE_ELO_MAP[league]||1580, date:"2026 (auto)", source:`${league||"Unknown"} avg` };
+  }
   return { ok:true, club:teamName, elo:1580, date:"2026 (default)", source:"estimated" };
 }
-  // FIX ① SECURITY: Use HTTPS to avoid mixed-content policy errors on HTTPS pages
-  const apiUrl = `https://api.clubelo.com/${slug}`;
-  for (const makeProxy of PROXIES) {
-    try {
-      const res = await fetchWithTimeout(makeProxy(apiUrl), 6000);
-      if (!res.ok) continue;
-      const raw = await res.text();
-      let csv = raw;
-      try { const j=JSON.parse(raw); if(j.contents) csv=j.contents; } catch(_) {}
-      if (!csv||csv.includes("No team")||csv.trim().length===0) break;
-      const lines = csv.split("\n").map(l=>l.trim()).filter(l=>l&&!l.startsWith("R")&&l.length>5);
-      if (!lines.length) continue;
-      const fields = lines[lines.length-1].split(",");
-      if (fields.length<6) continue;
-      const elo = parseFloat(fields[4]);
-      if (isNaN(elo)) continue;
-      return { ok:true, club:fields[1]?.trim()||teamName, elo, date:fields[5]?.trim()||"", source:"clubelo.com (live)" };
-    } catch(_) { continue; }
-  }
-  onStatus?.(`Looking up ${teamName}...`);
-  const dbResult = await searchTeamOnSportsDB(teamName);
-  if (dbResult) return dbResult;
-  return { ok:true, club:teamName, elo:1580, date:"2026 (default)", source:"estimated" };
-
 
 async function fetchNationElo(teamName) {
   const direct = NATION_ELO[teamName];
@@ -457,8 +412,13 @@ async function fetchNationElo(teamName) {
   const key = teamName.toLowerCase();
   const match = Object.keys(NATION_ELO).find(k=>k.toLowerCase().includes(key)||key.includes(k.toLowerCase()));
   if (match) return { ok:true, club:match, elo:NATION_ELO[match], date:"2026", source:"eloratings.net" };
-  const dbResult = await searchTeamOnSportsDB(teamName);
-  if (dbResult) return dbResult;
+  const json = await sportsDBFetch(`searchteams.php?t=${encodeURIComponent(teamName)}`);
+  const teams = (json?.teams||[]).filter(t=>t.strSport==="Soccer");
+  if (teams.length) {
+    const best = teams.find(t=>t.strTeam.toLowerCase()===teamName.toLowerCase())||teams[0];
+    const league = best.strLeague||"";
+    return { ok:true, club:best.strTeam, elo:LEAGUE_ELO_MAP[league]||1580, date:"2026 (auto)", source:`${league||"Unknown"} avg` };
+  }
   return { ok:true, club:teamName, elo:1500, date:"2026 (default)", source:"estimated" };
 }
 
