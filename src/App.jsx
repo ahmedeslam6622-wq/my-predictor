@@ -917,7 +917,7 @@ function PrivacyModal({onClose}) {
   const sections = [
     { heading:"Last updated", body:"May 2026" },
     { heading:"Who we are",
-      body:"Scorvik is a free, browser-based football prediction tool made by Zerovex. It uses statistical modelling (Poisson + Dixon-Coles) to estimate match outcomes. It is not affiliated with any bookmaker or betting service." },
+      body:"Scorvik is a free, browser-based football prediction tool made by Vynik. It uses statistical modelling (Poisson + Dixon-Coles) to estimate match outcomes. It is not affiliated with any bookmaker or betting service." },
     { heading:"Data we collect",
       body:"We do not collect your name, email, IP address, or any personally identifiable information. The only data stored on your device is your league preferences and prediction history, saved in your browser's localStorage. This data never leaves your device." },
     { heading:"Advertising & cookies (Google AdSense)",
@@ -927,7 +927,7 @@ function PrivacyModal({onClose}) {
     { heading:"Third-party APIs",
       body:"Fixture data comes from ESPN's public scoreboard API (site.api.espn.com). Elo ratings may be fetched from clubelo.com and thesportsdb.com. All requests go directly from your browser — we do not proxy or log them." },
     { heading:"\u{1F1EA}\u{1F1FA}  EEA users — GDPR", regional:"eu",
-      body:"If you are located in the European Economic Area, you have rights under the General Data Protection Regulation (GDPR): access, rectification, erasure, restriction, portability, and the right to object. We rely on your consent as the legal basis for serving personalised ads via Google AdSense (Art. 6(1)(a) GDPR). A consent banner will appear on your first visit. You may withdraw consent at any time at g.co/adsettings. For all other rights requests contact us via the Zerovex website." },
+      body:"If you are located in the European Economic Area, you have rights under the General Data Protection Regulation (GDPR): access, rectification, erasure, restriction, portability, and the right to object. We rely on your consent as the legal basis for serving personalised ads via Google AdSense (Art. 6(1)(a) GDPR). A consent banner will appear on your first visit. You may withdraw consent at any time at g.co/adsettings. For all other rights requests contact us via the Vynik website." },
     { heading:"\u{1F1EC}\u{1F1E7}  UK users — UK GDPR", regional:"uk",
       body:"If you are in the United Kingdom, the UK GDPR and Data Protection Act 2018 apply. Your rights mirror EU GDPR: access, rectification, erasure, restriction, portability, and objection. Personalised ads are served on the basis of your consent, which you may withdraw at any time at g.co/adsettings. We do not transfer your data outside the UK except where covered by adequacy regulations or appropriate safeguards." },
     { heading:"\u{1F1FA}\u{1F1F8}  California users — CCPA / CPRA", regional:"ca",
@@ -939,7 +939,7 @@ function PrivacyModal({onClose}) {
     { heading:"Changes",
       body:"If this policy changes materially the 'Last updated' date will be revised. Continued use constitutes acceptance." },
     { heading:"Contact",
-      body:"Questions or rights requests? Reach out via the Zerovex website. We'll respond within 30 days." },
+      body:"Questions or rights requests? Reach out via the Vynik website. We'll respond within 30 days." },
   ];
 
   const regionColor = { eu:"#4488EE", uk:"#EE4444", ca:"#4466AA" };
@@ -1269,6 +1269,7 @@ export default function App() {
 
   // FIX PERF ③: Stable handlePredict reference with useCallback
   const handlePredict=useCallback(async()=>{
+    const API = "https://my-predictor-api-production.up.railway.app";
     if (!canPredict){ setInputError("Please enter two different team names."); return; }
     setInputError(""); setLoadMsg("Fetching Elo ratings..."); setPhase("loading");
     const fetchFn=mode==="nations"?fetchNationElo:fetchClubElo;
@@ -1277,7 +1278,27 @@ export default function App() {
     setLoadMsg("Analysing recent form...");
     const [hForm,aForm]=await Promise.all([fetchTeamForm(homeTeam),fetchTeamForm(awayTeam)]);
     setHomeForm(hForm); setAwayForm(aForm);
-    const pred=runPredict(hd.elo,ad.elo,homeBonus,hForm?.formScore??0.5,aForm?.formScore??0.5);
+    let pred;
+try {
+  const resp = await fetch(`${API}/predict`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      home: homeTeam,
+      away: awayTeam,
+      venue,
+      mode,
+      form_h: hForm?.formScore ?? 0.5,
+      form_a: aForm?.formScore ?? 0.5,
+      elo_h: hd.elo,
+      elo_a: ad.elo,
+    })
+  });
+  pred = await resp.json();
+} catch(err) {
+  console.error("Backend error:", err);
+  pred = runPredict(hd.elo, ad.elo, homeBonus, hForm?.formScore??0.5, aForm?.formScore??0.5);
+}
     setPrediction(pred); setPhase("results");
     const vStr=venue===1?`${homeTeam} at home`:venue===2?`${awayTeam} at home`:"Neutral";
     const entry={homeTeam,awayTeam,homeData:hd,awayData:ad,venue,venueStr:vStr,prediction:pred,mode,timestamp:Date.now()};
@@ -1308,7 +1329,7 @@ export default function App() {
     const verdict=homeWins?`${homeTeam} Win`:awayWins?`${awayTeam} Win`:"Draw";
     const vp=homeWins?hw:awayWins?aw:d;
     if (format==="whatsapp") return `⚽ *${homeTeam} vs ${awayTeam}*\n🏆 Predicted: *${verdict}* (${(vp*100).toFixed(0)}%)\n📊 Most likely score: *${top.h}–${top.a}*\n📈 Over 2.5: ${(over25*100).toFixed(1)}% | BTTS: ${(btts*100).toFixed(1)}%\n\n_Free prediction by Scorvik — try it yourself!_`;
-    return `⚽ ${homeTeam} vs ${awayTeam}\n🏆 ${verdict} (${(vp*100).toFixed(0)}%)\n📊 Most likely: ${top.h}–${top.a}\n\nFree football predictions → Scorvik by Zerovex #football #prediction`;
+    return `⚽ ${homeTeam} vs ${awayTeam}\n🏆 ${verdict} (${(vp*100).toFixed(0)}%)\n📊 Most likely: ${top.h}–${top.a}\n\nFree football predictions → Scorvik by Vynik #football #prediction`;
   },[prediction,homeTeam,awayTeam]);
 
   const shareWhatsApp=useCallback(()=>{
@@ -1537,7 +1558,7 @@ export default function App() {
         {/* FOOTER */}
         <div style={{marginTop:36,fontSize:10,color:"#1C2636",letterSpacing:"0.07em",textAlign:"center",lineHeight:2}}>
           Club data © clubelo.com · Nation data © eloratings.net · Poisson model with Dixon-Coles correction<br/>
-          <span style={{color:"#162030"}}>Made by Zerovex · Purely Tech. Purely Free.</span><br/>
+          <span style={{color:"#162030"}}>Made by Vynik · Purely Tech. Purely Free.</span><br/>
           <button onClick={()=>setShowPrivacy(true)}
             style={{background:"transparent",border:"none",color:"#2A3A55",fontSize:10,cursor:"pointer",textDecoration:"underline",textUnderlineOffset:3,fontFamily:"'Barlow',sans-serif",letterSpacing:"0.07em",padding:0,marginTop:4}}>
             Privacy Policy

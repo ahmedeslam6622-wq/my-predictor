@@ -32,7 +32,6 @@ async function fetchMatches(dateStr) {
     "French Ligue 1":            { sport:"soccer", slug:"fra.1" },
     "UEFA Champions League":     { sport:"soccer", slug:"uefa.champions" },
     "UEFA Europa League":        { sport:"soccer", slug:"uefa.europa" },
-    "UEFA Conference League":    { sport:"soccer", slug:"uefa.europa.conference" },
     "Dutch Eredivisie":          { sport:"soccer", slug:"ned.1" },
     "Portuguese Primeira Liga":  { sport:"soccer", slug:"por.1" },
     "Scottish Premiership":      { sport:"soccer", slug:"sco.1" },
